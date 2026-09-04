@@ -1,0 +1,156 @@
+import React, { useState, useEffect } from 'react';
+import { initTelegram, haptic } from './lib/telegram';
+import { getStoredTheme, toggleTheme, type ThemeMode } from './lib/theme';
+import { useWardrobeStore } from './store/useWardrobeStore';
+import { HomeScreen } from './components/HomeScreen';
+import { ClosetScreen } from './components/ClosetScreen';
+import { AddScreen } from './components/AddScreen';
+import { LooksLibraryScreen } from './components/LooksLibraryScreen';
+import { ProfileScreen } from './components/ProfileScreen';
+
+type Tab = 'home' | 'closet' | 'add' | 'looks' | 'profile';
+
+const TAB_CONFIG: Record<Tab, { title: string; sub: (itemCount: number, lookCount: number) => string } | null> = {
+  home: null,
+  closet: { title: 'Гардероб', sub: (i) => `${i} шт.` },
+  add: { title: 'Новая вещь', sub: () => 'Шаг 1 из 1' },
+  looks: { title: 'Луки', sub: (_, l) => `${l} образов` },
+  profile: { title: 'Профиль', sub: (_, l) => `${l} образов` },
+};
+
+export const App: React.FC = () => {
+  const [currentTab, setCurrentTab] = useState<Tab>('home');
+  const [theme, setTheme] = useState<ThemeMode>(getStoredTheme());
+  const items = useWardrobeStore((s) => s.items);
+  const looks = useWardrobeStore((s) => s.looks);
+  const fetchItems = useWardrobeStore((s) => s.fetchItems);
+  const fetchLooks = useWardrobeStore((s) => s.fetchLooks);
+  const fetchFolders = useWardrobeStore((s) => s.fetchFolders);
+
+  useEffect(() => {
+    initTelegram();
+    fetchItems();
+    fetchLooks();
+    fetchFolders();
+  }, [fetchItems, fetchLooks, fetchFolders]);
+
+  const handleToggleTheme = () => {
+    haptic('light');
+    setTheme(toggleTheme());
+  };
+
+  const config = TAB_CONFIG[currentTab];
+
+  return (
+    <div id="app">
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={handleToggleTheme}
+        aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+        title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+      >
+        {theme === 'dark' ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M20 14.5A8.5 8.5 0 119.5 4a7 7 0 0010.5 10.5z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
+
+      {config && (
+        <header className="topbar">
+          <h1 className="display">{config.title}</h1>
+          <span className="count">{config.sub(items.length, looks.length)}</span>
+        </header>
+      )}
+
+      <main className="screen-container">
+        {currentTab === 'home' && (
+          <HomeScreen
+            onNavigateToAdd={() => setCurrentTab('add')}
+            onNavigateToCloset={() => setCurrentTab('closet')}
+            onNavigateToLooks={() => setCurrentTab('looks')}
+            onOpenLook={() => setCurrentTab('looks')}
+          />
+        )}
+        {currentTab === 'closet' && <ClosetScreen onNavigateToAdd={() => setCurrentTab('add')} />}
+        {currentTab === 'add' && <AddScreen onSuccess={() => setCurrentTab('closet')} />}
+        {currentTab === 'looks' && <LooksLibraryScreen />}
+        {currentTab === 'profile' && <ProfileScreen />}
+      </main>
+
+      <nav className="tabbar">
+        <button
+          className={`tab ${currentTab === 'home' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setCurrentTab('home');
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Главная
+        </button>
+        <button
+          className={`tab ${currentTab === 'closet' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setCurrentTab('closet');
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M6 4l3 2 3-2 3 2 3-2v16H6V4z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Гардероб
+        </button>
+        <button
+          className={`tab ${currentTab === 'add' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setCurrentTab('add');
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="12" r="9" strokeLinecap="round" />
+            <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+          </svg>
+          Добавить
+        </button>
+        <button
+          className={`tab ${currentTab === 'looks' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setCurrentTab('looks');
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <path d="M4 14l4-4 4 4 4-6 4 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Луки
+        </button>
+        <button
+          className={`tab ${currentTab === 'profile' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setCurrentTab('profile');
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="8" r="3.4" />
+            <path d="M5 20c1.5-4 4.2-6 7-6s5.5 2 7 6" strokeLinecap="round" />
+          </svg>
+          Профиль
+        </button>
+      </nav>
+    </div>
+  );
+};
+
+export default App;

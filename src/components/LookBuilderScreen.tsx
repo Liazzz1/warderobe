@@ -1,0 +1,478 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useWardrobeStore } from '../store/useWardrobeStore';
+import { haptic, hapticSuccess, tg } from '../lib/telegram';
+import { api } from '../lib/api';
+import { composeLookPreview } from '../lib/composePreview';
+import { ItemDetailModal } from './ItemDetailModal';
+import type { Category, ClothingItem, Look } from '../types';
+
+type BuilderMode = 'slots' | 'canvas';
+
+const SLOT_CONFIG: { category: Category; label: string; icon: string }[] = [
+  { category: 'outerwear', label: 'Верхняя одежда', icon: '🧥' },
+  { category: 'top', label: 'Верх', icon: '👕' },
+  { category: 'bottom', label: 'Низ', icon: '👖' },
+  { category: 'shoes', label: 'Обувь', icon: '👟' },
+  { category: 'accessory', label: 'Аксессуар', icon: '🧢' },
+  { category: 'dress', label: 'Платье', icon: '👗' },
+];
+
+interface LookBuilderScreenProps {
+  folderId?: string | null;
+  onSaved?: () => void;
+  /** Если передан — экран открывается в режиме редактирования этого образа */
+  editLook?: Look | null;
+}
+
+export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId = null, onSaved, editLook = null }) => {
+  const {
+    items,
+    builderLayers,
+    selectedLayerItemId,
+    addToCanvas,
+    updateLayer,
+    removeLayer,
+    bringToFront,
+    clearCanvas,
+    selectLayer,
+    addLook,
+    updateLookInStore,
+    loadLayersToCanvas,
+  } = useWardrobeStore();
+  const [viewingItem, setViewingItem] = useState<ClothingItem | null>(null);
+
+  const [mode, setMode] = useState<BuilderMode>(editLook?.mode ?? 'slots');
+  const [selectedSlots, setSelectedSlots] = useState<Record<Category, ClothingItem | null>>({
+    top: null,
+    bottom: null,
+    shoes: null,
+    accessory: null,
+    outerwear: null,
+    dress: null,
+  });
+  const [pinnedSlots, setPinnedSlots] = useState<Record<string, boolean>>({});
+
+  // Подгружаем данные редактируемого образа при открытии
+  useEffect(() => {
+    if (!editLook) return;
+
+    if (editLook.mode === 'canvas') {
+      loadLayersToCanvas(editLook.layers);
+    } else {
+      const slots: Record<Category, ClothingItem | null> = {
+        top: null,
+        bottom: null,
+        shoes: null,
+        accessory: null,
+        outerwear: null,
+        dress: null,
+      };
+      editLook.layers.forEach((layer) => {
+        const item = items.find((i) => i.id === layer.itemId);
+        if (item) slots[item.category] = item;
+      });
+      setSelectedSlots(slots);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editLook]);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const dragRef = useRef<{ itemId: string; startX: number; startY: number; initX: number; initY: number } | null>(null);
+
+  const selectedLayer = builderLayers.find((l) => l.itemId === selectedLayerItemId);
+
+  // --- ЛОГИКА СЛОТОВ ---
+  const handleCycleSlot = (cat: Category, direction: 1 | -1) => {
+    haptic('light');
+    const catItems = items.filter((i) => i.category === cat);
+    if (catItems.length === 0) return;
+
+    const current = selectedSlots[cat];
+    const currentIndex = current ? catItems.findIndex((i) => i.id === current.id) : -1;
+    let nextIndex = currentIndex + direction;
+
+    if (nextIndex >= catItems.length) nextIndex = 0;
+    if (nextIndex < 0) nextIndex = catItems.length - 1;
+
+    setSelectedSlots((prev) => ({ ...prev, [cat]: catItems[nextIndex] }));
+  };
+
+  const handleRandomizeSlots = () => {
+    haptic('medium');
+    const newSlots = { ...selectedSlots };
+    SLOT_CONFIG.forEach(({ category }) => {
+      if (pinnedSlots[category]) return;
+      const catItems = items.filter((i) => i.category === category);
+      if (catItems.length > 0) {
+        newSlots[category] = catItems[Math.floor(Math.random() * catItems.length)];
+      }
+    });
+    setSelectedSlots(newSlots);
+  };
+
+  const handleTogglePin = (cat: Category) => {
+    haptic('light');
+    setPinnedSlots((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const handleSaveSlotLook = async () => {
+    const activeItems = Object.values(selectedSlots).filter(Boolean) as ClothingItem[];
+    if (activeItems.length === 0) return;
+
+    setIsSaving(true);
+    haptic('heavy');
+    try {
+      const layers = activeItems.map((item, index) => ({
+        itemId: item.id,
+        x: 40 + index * 20,
+        y: 40 + index * 40,
+        scale: 1,
+        rotation: 0,
+        zIndex: index + 1,
+      }));
+
+      const previewUrl = await composeLookPreview(layers, items).catch(() => undefined);
+
+      if (editLook && editLook.mode !== 'canvas') {
+        const updated = await api.updateLook(editLook.id, {
+          layers,
+          previewUrl,
+          folderId: editLook.folderId ?? folderId,
+          mode: 'slots',
+        });
+        if (updated) updateLookInStore(updated);
+      } else {
+        const saved = await api.saveLook({
+          name: `Слот-образ ${new Date().toLocaleDateString('ru-RU')}`,
+          layers,
+          previewUrl,
+          folderId,
+          mode: 'slots',
+        });
+        addLook(saved);
+      }
+      hapticSuccess();
+      tg?.sendData?.(JSON.stringify({ event: 'LOOK_SAVED' }));
+      onSaved?.();
+    } catch (err) {
+      console.error(err);
+      haptic('rigid');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- ЛОГИКА КАНВАСА ---
+  const handlePointerDown = (e: React.PointerEvent, itemId: string) => {
+    const layer = builderLayers.find((l) => l.itemId === itemId);
+    if (!layer) return;
+
+    selectLayer(itemId);
+    bringToFront(itemId);
+    haptic('light');
+
+    dragRef.current = {
+      itemId,
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: layer.x,
+      initY: layer.y,
+    };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const { itemId, startX, startY, initX, initY } = dragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    updateLayer(itemId, {
+      x: Math.round(initX + dx),
+      y: Math.round(initY + dy),
+    });
+  };
+
+  const handlePointerUp = () => {
+    dragRef.current = null;
+  };
+
+  const handleScale = (delta: number) => {
+    if (!selectedLayerItemId || !selectedLayer) return;
+    haptic('light');
+    const newScale = Math.max(0.4, Math.min(2.2, selectedLayer.scale + delta));
+    updateLayer(selectedLayerItemId, { scale: Number(newScale.toFixed(2)) });
+  };
+
+  const handleRotate = (deg: number) => {
+    if (!selectedLayerItemId || !selectedLayer) return;
+    haptic('light');
+    updateLayer(selectedLayerItemId, { rotation: (selectedLayer.rotation + deg) % 360 });
+  };
+
+  const handleSaveCanvasLook = async () => {
+    if (builderLayers.length === 0) return;
+    setIsSaving(true);
+    haptic('heavy');
+    try {
+      const previewUrl = await composeLookPreview(builderLayers, items).catch(() => undefined);
+
+      // В режиме коллажа сохраняем и позиции для холста, и сам список вещей —
+      // так образ можно будет открыть на редактирование и удалить/поменять вещи.
+      if (editLook) {
+        const updated = await api.updateLook(editLook.id, {
+          layers: builderLayers,
+          previewUrl,
+          folderId: editLook.folderId ?? folderId,
+          mode: 'canvas',
+        });
+        if (updated) updateLookInStore(updated);
+      } else {
+        const saved = await api.saveLook({
+          name: `Коллаж ${new Date().toLocaleDateString('ru-RU')}`,
+          layers: builderLayers,
+          previewUrl,
+          folderId,
+          mode: 'canvas',
+        });
+        addLook(saved);
+      }
+      hapticSuccess();
+      tg?.sendData?.(JSON.stringify({ event: 'LOOK_SAVED' }));
+      onSaved?.();
+    } catch (err) {
+      console.error(err);
+      haptic('rigid');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="screen-content">
+      {/* Переключатель режимов */}
+      <div className="mode-switch">
+        <button
+          className={`mode-btn ${mode === 'slots' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setMode('slots');
+          }}
+        >
+          По слотам
+        </button>
+        <button
+          className={`mode-btn ${mode === 'canvas' ? 'active' : ''}`}
+          onClick={() => {
+            haptic('light');
+            setMode('canvas');
+          }}
+        >
+          Коллаж (Холст)
+        </button>
+      </div>
+
+      {mode === 'slots' ? (
+        <div>
+          {SLOT_CONFIG.map(({ category, label, icon }) => {
+            const currentItem = selectedSlots[category];
+            const catItems = items.filter((i) => i.category === category);
+            if (catItems.length === 0) return null;
+
+            const currentIndex = currentItem ? catItems.findIndex((i) => i.id === currentItem.id) : -1;
+            const prevItem = catItems.length > 1 ? catItems[(currentIndex - 1 + catItems.length) % catItems.length] : null;
+            const nextItem = catItems.length > 1 ? catItems[(currentIndex + 1) % catItems.length] : null;
+            const isPinned = !!pinnedSlots[category];
+
+            return (
+              <div key={category} className="slot-stack-row">
+                {!currentItem && <div className="slot-stack-label">Добавить: {label}</div>}
+                <div className="slot-stack-carousel">
+                  {prevItem && (
+                    <button
+                      className="slot-peek left"
+                      onClick={() => handleCycleSlot(category, -1)}
+                      aria-label="Предыдущая вещь"
+                    >
+                      <img src={prevItem.imageUrl} alt="" />
+                    </button>
+                  )}
+
+                  <div className="slot-stack-main">
+                    {currentItem ? (
+                      <>
+                        <img
+                          src={currentItem.imageUrl}
+                          alt={currentItem.name}
+                          onClick={() => setViewingItem(currentItem)}
+                        />
+                        <button
+                          className={`slot-pin-btn ${isPinned ? 'active' : ''}`}
+                          onClick={() => handleTogglePin(category)}
+                          title="Закрепить вещь"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2l1.5 5.5L19 9l-4.5 3.5L16 18l-4-3-4 3 1.5-5.5L5 9l5.5-1.5L12 2z" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="slot-stack-empty"
+                        onClick={() => handleCycleSlot(category, 1)}
+                      >
+                        <span>{icon}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {nextItem && (
+                    <button
+                      className="slot-peek right"
+                      onClick={() => handleCycleSlot(category, 1)}
+                      aria-label="Следующая вещь"
+                    >
+                      <img src={nextItem.imageUrl} alt="" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {SLOT_CONFIG.every(({ category }) => items.filter((i) => i.category === category).length === 0) && (
+            <div className="empty-state">
+              <div className="icon-box">🧵</div>
+              <h3>Добавьте вещи</h3>
+              <p>Чтобы собрать образ по слотам, сначала загрузите вещи в гардероб</p>
+            </div>
+          )}
+
+          <div className="look-actions">
+            <button className="btn-secondary" onClick={handleRandomizeSlots}>
+              🎲 Случайно
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ background: 'var(--lav)', color: '#171126', borderColor: 'var(--lav)' }}
+              disabled={Object.values(selectedSlots).every((v) => v === null) || isSaving}
+              onClick={handleSaveSlotLook}
+            >
+              {isSaving ? 'Сохранение…' : editLook ? 'Сохранить изменения' : 'Сохранить образ'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div
+            ref={canvasRef}
+            className="canvas-wrap"
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onClick={(e) => {
+              if (e.target === canvasRef.current) selectLayer(null);
+            }}
+          >
+            {builderLayers.length === 0 && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                Выберите вещи из списка ниже, чтобы добавить их на холст
+              </div>
+            )}
+
+            {builderLayers.map((layer) => {
+              const item = items.find((it) => it.id === layer.itemId);
+              if (!item) return null;
+              const isSelected = selectedLayerItemId === layer.itemId;
+
+              return (
+                <div
+                  key={layer.itemId}
+                  className={`canvas-item ${isSelected ? 'selected' : ''}`}
+                  style={{
+                    left: `${layer.x}px`,
+                    top: `${layer.y}px`,
+                    transform: `scale(${layer.scale}) rotate(${layer.rotation}deg)`,
+                    zIndex: layer.zIndex,
+                  }}
+                  onPointerDown={(e) => handlePointerDown(e, layer.itemId)}
+                >
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {selectedLayer && (
+            <div className="canvas-controls">
+              <button className="control-btn" onClick={() => handleScale(0.15)}>+ Масштаб</button>
+              <button className="control-btn" onClick={() => handleScale(-0.15)}>- Масштаб</button>
+              <button className="control-btn" onClick={() => handleRotate(15)}>⟳ 15°</button>
+              <button className="control-btn" style={{ color: 'var(--danger)' }} onClick={() => removeLayer(selectedLayer.itemId)}>
+                Удалить
+              </button>
+            </div>
+          )}
+
+          <div className="sec-label">Добавить на холст</div>
+          <div className="tray">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="tray-item checker-bg"
+                style={{ position: 'relative' }}
+                onClick={() => {
+                  haptic('light');
+                  addToCanvas(item.id);
+                }}
+              >
+                <img src={item.imageUrl} alt={item.name} />
+                <button
+                  className="view-eye"
+                  style={{ width: 20, height: 20, top: 3, left: 3 }}
+                  title="Открыть вещь"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    haptic('light');
+                    setViewingItem(item);
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="look-actions">
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                haptic('medium');
+                clearCanvas();
+              }}
+            >
+              Очистить
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ background: 'var(--lav)', color: '#171126', borderColor: 'var(--lav)' }}
+              disabled={builderLayers.length === 0 || isSaving}
+              onClick={handleSaveCanvasLook}
+            >
+              {isSaving ? 'Сохранение…' : editLook ? 'Сохранить изменения' : 'Сохранить коллаж'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {viewingItem && <ItemDetailModal item={viewingItem} onClose={() => setViewingItem(null)} />}
+    </div>
+  );
+};
