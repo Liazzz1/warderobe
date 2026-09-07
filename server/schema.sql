@@ -39,8 +39,10 @@ CREATE TABLE IF NOT EXISTS looks (
     name TEXT NOT NULL,
     layers JSONB NOT NULL DEFAULT '[]'::jsonb,
     preview_url TEXT,
+    mode TEXT NOT NULL DEFAULT 'slots',
     folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_looks_user ON looks(user_id);
 CREATE INDEX IF NOT EXISTS idx_looks_folder ON looks(folder_id);
+ALTER TABLE looks ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'slots';

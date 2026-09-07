@@ -132,12 +132,9 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
         zIndex: index + 1,
       }));
 
-      const previewUrl = await composeLookPreview(layers, items).catch(() => undefined);
-
       if (editLook && editLook.mode !== 'canvas') {
         const updated = await api.updateLook(editLook.id, {
           layers,
-          previewUrl,
           folderId: editLook.folderId ?? folderId,
           mode: 'slots',
         });
@@ -146,7 +143,6 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
         const saved = await api.saveLook({
           name: `Слот-образ ${new Date().toLocaleDateString('ru-RU')}`,
           layers,
-          previewUrl,
           folderId,
           mode: 'slots',
         });

@@ -181,8 +181,9 @@ export const LooksLibraryScreen: React.FC = () => {
         </div>
       ) : (
         <div className="grid">
-          {folderLooks.map((look) => (
-            <div
+          {folderLooks.map((look) => {
+            const isCanvasLook = look.mode === 'canvas' || (!look.mode && Boolean(look.previewUrl));
+            return <div
               key={look.id}
               className="item-card look-thumb"
               style={{ padding: 0, aspectRatio: 1 }}
@@ -191,11 +192,14 @@ export const LooksLibraryScreen: React.FC = () => {
                 setViewingLook(look);
               }}
             >
-              <div className="thumb checker-bg" style={{ height: '100%', borderRadius: 12 }}>
-                {look.previewUrl ? (
+              <div className={`thumb checker-bg ${isCanvasLook ? '' : 'look-slots-preview'}`} style={{ height: '100%', borderRadius: 12 }}>
+                {isCanvasLook && look.previewUrl ? (
                   <img src={look.previewUrl} alt={look.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '24px' }}>✨</span>
+                  [0, 1, 2, 3].map((index) => {
+                    const item = items.find((candidate) => candidate.id === look.layers[index]?.itemId);
+                    return <div key={index} className="look-slots-cell">{item && <img src={item.imageUrl} alt="" />}</div>;
+                  })
                 )}
               </div>
               <div className="look-name">{look.name}</div>
@@ -212,8 +216,8 @@ export const LooksLibraryScreen: React.FC = () => {
                   <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-            </div>
-          ))}
+            </div>;
+          })}
         </div>
       )}
 

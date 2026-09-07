@@ -146,6 +146,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           const lookItems = look.layers
             .map((l) => items.find((i) => i.id === l.itemId))
             .filter(Boolean) as ClothingItem[];
+          const isCanvasLook = look.mode === 'canvas' || (!look.mode && Boolean(look.previewUrl));
           return (
             <button
               key={look.id}
@@ -155,12 +156,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 onOpenLook(look.id);
               }}
             >
-              <div className="home-look-grid">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="home-look-cell checker-bg">
-                    {lookItems[i] && <img src={lookItems[i].imageUrl} alt="" />}
-                  </div>
-                ))}
+              <div className={`home-look-grid ${isCanvasLook ? 'canvas-preview' : ''}`}>
+                {isCanvasLook && look.previewUrl ? (
+                  <img src={look.previewUrl} alt={`Коллаж: ${look.name}`} />
+                ) : (
+                  [0, 1, 2, 3].map((i) => (
+                    <div key={i} className="home-look-cell checker-bg">
+                      {lookItems[i] && <img src={lookItems[i].imageUrl} alt="" />}
+                    </div>
+                  ))
+                )}
               </div>
               <div className="home-look-info">
                 <div className="home-look-num">{idx + 1}</div>
