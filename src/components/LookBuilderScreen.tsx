@@ -43,9 +43,9 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
   } = useWardrobeStore();
   const [viewingItem, setViewingItem] = useState<ClothingItem | null>(null);
 
-  const [mode, setMode] = useState<BuilderMode>(
-    editLook ? (isSlotLook(editLook) ? 'slots' : 'canvas') : (initialMode ?? 'slots')
-  );
+  const mode: BuilderMode = editLook
+    ? (isSlotLook(editLook) ? 'slots' : 'canvas')
+    : (initialMode ?? 'slots');
   const [selectedSlots, setSelectedSlots] = useState<Record<Category, ClothingItem | null>>({
     top: null,
     bottom: null,
@@ -220,7 +220,9 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
     setIsSaving(true);
     haptic('heavy');
     try {
-      const previewUrl = await composeLookPreview(builderLayers, items).catch(() => undefined);
+      const canvasWidth = canvasRef.current?.clientWidth || 380;
+      const canvasHeight = canvasRef.current?.clientHeight || 380;
+      const previewUrl = await composeLookPreview(builderLayers, items, canvasWidth, canvasHeight).catch(() => undefined);
 
       // В режиме коллажа сохраняем и позиции для холста, и сам список вещей —
       // так образ можно будет открыть на редактирование и удалить/поменять вещи.
@@ -255,26 +257,9 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
 
   return (
     <div className="screen-content">
-      {/* Переключатель режимов */}
-      <div className="mode-switch">
-        <button
-          className={`mode-btn ${mode === 'slots' ? 'active' : ''}`}
-          onClick={() => {
-            haptic('light');
-            setMode('slots');
-          }}
-        >
-          По слотам
-        </button>
-        <button
-          className={`mode-btn ${mode === 'canvas' ? 'active' : ''}`}
-          onClick={() => {
-            haptic('light');
-            setMode('canvas');
-          }}
-        >
-          Коллаж (Холст)
-        </button>
+      {/* Заголовок выбранного режима */}
+      <div className="section-divider" style={{ marginTop: 0, marginBottom: 14 }}>
+        {mode === 'slots' ? '🔲 Сборка по слотам' : '🎨 Коллаж на холсте'}
       </div>
 
       {mode === 'slots' ? (

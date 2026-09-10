@@ -31,75 +31,73 @@ function pickGridCols(count: number): number {
 }
 
 /**
- * Строит превью лука как плоскую раскладку ("flat lay") — вещи выстраиваются
- * рядом друг с другом по сетке, а не в тех произвольных координатах,
- * в которых их можно перетаскивать на холсте конструктора. Это даёт читаемую
- * картинку независимо от того, собирался лук по слотам или на холсте-коллаже.
- * Используется вместо эмодзи-заглушки для сохранённых образов.
+ * Строит превью холста (коллажа) в точности так, как пользователь расставил вещи:
+ * с сохранением их точных координат (x, y), масштаба (scale), угла поворота (rotation)
+ * и порядка слоёв (zIndex). Это гарантирует 100% совпадение превью с холстом.
  */
 export async function composeLookPreview(
   layers: LookLayer[],
-  items: ClothingItem[]
+  items: ClothingItem[],
+  canvasWidth = 380,
+  canvasHeight = 380
 ): Promise<string> {
   const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_CSS_WIDTH * RENDER_SCALE;
-  canvas.height = CANVAS_CSS_HEIGHT * RENDER_SCALE;
+  canvas.width = canvasWidth * RENDER_SCALE;
+  canvas.height = canvasHeight * RENDER_SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  ctx.fillStyle = '#16161a';
+  // Отрисовываем радиальный градиентный фон холста — точь-в-точь как в .canvas-wrap
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = Math.max(canvas.width, canvas.height) / 1.3;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+  grad.addColorStop(0, '#1e1e24');
+  grad.addColorStop(1, '#121214');
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Уникальные вещи лука, в порядке "как их носят"
-  const seen = new Set<string>();
-  const lookItems: ClothingItem[] = [];
-  for (const layer of [...layers].sort((a, b) => a.zIndex - b.zIndex)) {
-    if (seen.has(layer.itemId)) continue;
-    const item = items.find((it) => it.id === layer.itemId);
-    if (!item) continue;
-    seen.add(layer.itemId);
-    lookItems.push(item);
-  }
-  lookItems.sort(
-    (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
-  );
-
-  if (lookItems.length === 0) {
-    return canvas.toDataURL('image/png', 0.85);
+  if (layers.length === 0) {
+    return canvas.toDataURL('image/png', 0.9);
   }
 
-  const cols = pickGridCols(lookItems.length);
-  const rows = Math.ceil(lookItems.length / cols);
-
-  const padding = PADDING * RENDER_SCALE;
-  const gap = GAP * RENDER_SCALE;
-  const cellW = (canvas.width - padding * 2 - gap * (cols - 1)) / cols;
-  const cellH = (canvas.height - padding * 2 - gap * (rows - 1)) / rows;
+  // Сортируем слои по zIndex от нижних к верхним
+  const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+  const scale = RENDER_SCALE;
 
   let successCount = 0;
-  for (let i = 0; i < lookItems.length; i++) {
-    const item = lookItems[i];
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const cellX = padding + col * (cellW + gap);
-    const cellY = padding + row * (cellH + gap);
+  for (const layer of sortedLayers) {
+    const item = items.find((it) => it.id === layer.itemId);
+    if (!item) continue;
 
     try {
       const img = await loadImage(item.imageUrl);
-      const fitScale = Math.min(cellW / img.width, cellH / img.height);
-      const drawW = img.width * fitScale * 0.9; // небольшой отступ внутри ячейки
-      const drawH = img.height * fitScale * 0.9;
-      const dx = cellX + (cellW - drawW) / 2;
-      const dy = cellY + (cellH - drawH) / 2;
+
+      // В DOM размер карточки вещи на холсте 120x120px
+      // Центр карточки в координатах холста: (layer.x + 60, layer.y + 60)
+      const centerX = (layer.x + 60) * scale;
+      const centerY = (layer.y + 60) * scale;
+
+      // Пропорциональное вписывание картинки в квадрат 120x120
+      const fitScale = Math.min(120 / img.width, 120 / img.height);
+      const drawW = img.width * fitScale * scale;
+      const drawH = img.height * fitScale * scale;
 
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.35)';
-      ctx.shadowBlur = 10 * RENDER_SCALE;
-      ctx.drawImage(img, dx, dy, drawW, drawH);
+      ctx.translate(centerX, centerY);
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+      ctx.scale(layer.scale, layer.scale);
+
+      // Тень как в CSS: filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.6))
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 16 * scale;
+      ctx.shadowOffsetY = 10 * scale;
+
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
       successCount++;
     } catch (err) {
-      console.warn('Failed to draw item for preview', err);
+      console.warn('Failed to draw item on canvas preview', err);
     }
   }
 
@@ -107,7 +105,7 @@ export async function composeLookPreview(
     throw new Error('Could not draw any items onto preview canvas');
   }
 
-  return canvas.toDataURL('image/png', 0.85);
+  return canvas.toDataURL('image/png', 0.9);
 }
 
 /**

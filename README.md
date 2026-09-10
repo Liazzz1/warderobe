@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Warderobe — Telegram Mini App (TMA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Telegram Mini App для оцифровки личного гардероба и составления образов (луков) с поддержкой режимов слотов и свободного холста, синхронизацией между ПК и смартфоном.
 
-Currently, two official plugins are available:
+> 📖 **Полная документация по архитектуре, коду и подводным камням**: см. [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Стек технологий
 
-## React Compiler
+- **Frontend**: React 19, TypeScript, Vite, Zustand, IndexedDB, Telegram WebApp SDK
+- **Backend**: FastAPI, Python 3.11, PostgreSQL, Pillow, Uvicorn
+- **Деплой**:
+  - Фронтенд: GitHub Pages (`.github/workflows/deploy.yml`)
+  - Бэкенд: Railway (`server/` + PostgreSQL + Persistent Volume `/data`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Быстрый старт
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### Фронтенд:
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Бэкенд:
+```bash
+cd server
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
