@@ -20,7 +20,6 @@ export const LooksLibraryScreen: React.FC = () => {
     createFolder,
     removeFolder,
     removeLook,
-    clearCanvas,
   } = useWardrobeStore();
 
   const [viewingLook, setViewingLook] = useState<Look | null>(null);

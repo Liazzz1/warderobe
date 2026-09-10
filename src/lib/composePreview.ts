@@ -6,9 +6,6 @@ const RENDER_SCALE = 2; // рендерим в 2x для чёткости пре
 const PADDING = 18;
 const GAP = 12;
 
-// "Человеческий" порядок вещей в раскладке — сверху то, что носится поверх/выше.
-const CATEGORY_ORDER: Category[] = ['outerwear', 'dress', 'top', 'bottom', 'shoes', 'accessory'];
-
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -23,12 +20,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function pickGridCols(count: number): number {
-  if (count <= 2) return count;
-  if (count === 3) return 3;
-  if (count === 4) return 2;
-  return 3;
-}
 
 /**
  * Строит превью холста (коллажа) в точности так, как пользователь расставил вещи:
