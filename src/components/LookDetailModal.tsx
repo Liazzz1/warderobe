@@ -10,21 +10,22 @@ interface LookDetailModalProps {
   onEdit: () => void;
 }
 
-const SLOT_CONFIG: { category: Category; label: string; icon: string }[] = [
-  { category: 'outerwear', label: 'Верхняя одежда', icon: '🧥' },
-  { category: 'top', label: 'Верх', icon: '👕' },
-  { category: 'dress', label: 'Платье', icon: '👗' },
-  { category: 'bottom', label: 'Низ', icon: '👖' },
-  { category: 'shoes', label: 'Обувь', icon: '👟' },
-  { category: 'accessory', label: 'Аксессуар', icon: '🧢' },
+const SLOT_CONFIG: { category: Category; label: string }[] = [
+  { category: 'outerwear', label: 'Верхняя одежда' },
+  { category: 'top', label: 'Верх' },
+  { category: 'dress', label: 'Платье' },
+  { category: 'bottom', label: 'Низ' },
+  { category: 'shoes', label: 'Обувь' },
+  { category: 'accessory', label: 'Аксессуар' },
 ];
 
 export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, onClose, onDelete, onEdit }) => {
   const isSlots = look.mode === 'slots';
 
-  // Для слот-режима — группируем вещи по категории
-  const slotItems: { category: Category; label: string; icon: string; item: ClothingItem }[] = [];
+  // Слот-режим: нумерованный список вещей по категориям
+  const slotItems: { num: number; label: string; item: ClothingItem }[] = [];
   if (isSlots) {
+    let num = 1;
     for (const slot of SLOT_CONFIG) {
       const layer = look.layers.find((l) => {
         const it = items.find((i) => i.id === l.itemId);
@@ -32,12 +33,14 @@ export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, o
       });
       if (layer) {
         const item = items.find((i) => i.id === layer.itemId);
-        if (item) slotItems.push({ ...slot, item });
+        if (item) {
+          slotItems.push({ num: num++, label: slot.label, item });
+        }
       }
     }
   }
 
-  // Для canvas-режима — все вещи по порядку
+  // Canvas-режим: все вещи по порядку
   const lookItems = look.layers
     .map((l) => items.find((it) => it.id === l.itemId))
     .filter(Boolean) as ClothingItem[];
@@ -50,23 +53,33 @@ export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, o
         onClose();
       }}
     >
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-sheet look-detail-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-handle" />
 
+        {/* Заголовок */}
+        <div className="look-detail-header">
+          <div className="look-detail-name">{look.name}</div>
+          <div className="look-detail-meta">
+            {isSlots ? '🔲 По слотам' : '🎨 Коллаж'} · {new Date(look.createdAt).toLocaleDateString('ru-RU')}
+          </div>
+        </div>
+
         {isSlots ? (
-          /* ── Слот-вид: карточки по категориям ── */
-          <div className="slots-detail-view">
+          /* ── Слот-вид: большие пронумерованные карточки ── */
+          <div className="slot-cards-list">
             {slotItems.length > 0 ? (
-              slotItems.map(({ category, label, icon, item }) => (
-                <div key={category} className="slot-detail-row">
-                  <div className="slot-detail-icon">{icon}</div>
-                  <div className="slot-detail-thumb checker-bg">
+              slotItems.map(({ num, label, item }) => (
+                <div key={item.id} className="slot-big-card">
+                  <div className="slot-big-card-header">
+                    <span className="slot-big-card-num">{num}.</span>
+                    <span className="slot-big-card-label">{label.toUpperCase()}</span>
+                  </div>
+                  <div className="slot-big-card-body checker-bg">
                     <img src={item.imageUrl} alt={item.name} />
                   </div>
-                  <div className="slot-detail-info">
-                    <div className="slot-detail-label">{label}</div>
-                    <div className="slot-detail-name">{item.name}</div>
-                    {item.brand && <div className="slot-detail-brand">{item.brand}</div>}
+                  <div className="slot-big-card-footer">
+                    <span className="slot-big-card-item-name">{item.name}</span>
+                    <span className="slot-big-card-item-cat">{label}</span>
                   </div>
                 </div>
               ))
@@ -77,33 +90,27 @@ export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, o
             )}
           </div>
         ) : (
-          /* ── Canvas-вид: превью картинка ── */
-          <div className="detail-image checker-bg">
-            {look.previewUrl ? (
-              <img src={look.previewUrl} alt={look.name} />
-            ) : (
-              <span style={{ fontSize: '40px' }}>✨</span>
-            )}
-          </div>
-        )}
-
-        <div className="detail-title">{look.name}</div>
-        <div className="detail-sub">
-          {isSlots ? '🔲 По слотам · ' : '🎨 Коллаж · '}
-          {new Date(look.createdAt).toLocaleDateString('ru-RU')}
-        </div>
-
-        {/* Для canvas-режима дополнительно показываем список вещей */}
-        {!isSlots && lookItems.length > 0 && (
+          /* ── Canvas-вид: превью картинка + список вещей ── */
           <>
-            <div className="section-divider">Вещи в образе ({lookItems.length})</div>
-            <div className="tray" style={{ marginTop: 0 }}>
-              {lookItems.map((item) => (
-                <div key={item.id} className="tray-item checker-bg">
-                  <img src={item.imageUrl} alt={item.name} />
-                </div>
-              ))}
+            <div className="detail-image checker-bg">
+              {look.previewUrl ? (
+                <img src={look.previewUrl} alt={look.name} />
+              ) : (
+                <span style={{ fontSize: '40px' }}>✨</span>
+              )}
             </div>
+            {lookItems.length > 0 && (
+              <>
+                <div className="section-divider">Вещи в образе ({lookItems.length})</div>
+                <div className="tray" style={{ marginTop: 0 }}>
+                  {lookItems.map((item) => (
+                    <div key={item.id} className="tray-item checker-bg">
+                      <img src={item.imageUrl} alt={item.name} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
 

@@ -1217,75 +1217,161 @@ input.text-input::placeholder {
   flex: 1;
 }
 
-/* ── Слот-вид в модале детального просмотра образа ── */
-.slots-detail-view {
+/* ── Look Detail Modal (расширенный лист) ── */
+.look-detail-sheet {
+  max-height: 90vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 52vh;
-  overflow-y: auto;
-  padding: 4px 2px;
+}
+
+.look-detail-header {
+  margin-bottom: 14px;
+}
+
+.look-detail-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
   margin-bottom: 4px;
 }
 
-.slot-detail-row {
+.look-detail-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── Большие пронумерованные карточки (слот-вид) ── */
+.slot-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+
+.slot-big-card {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+}
+
+.slot-big-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: var(--bg-subtle);
-  border-radius: 12px;
-  padding: 8px 12px 8px 10px;
+  gap: 6px;
+  padding: 10px 14px 8px;
 }
 
-.slot-detail-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-  width: 28px;
-  text-align: center;
+.slot-big-card-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
 }
 
-.slot-detail-thumb {
-  width: 52px;
-  height: 52px;
-  border-radius: 8px;
-  flex-shrink: 0;
+.slot-big-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+}
+
+.slot-big-card-body {
+  width: 100%;
+  aspect-ratio: 4 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 
-.slot-detail-thumb img {
+.slot-big-card-body img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  padding: 12px;
 }
 
-.slot-detail-info {
+.slot-big-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 12px;
+}
+
+.slot-big-card-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-big-card-item-cat {
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* ── Модал выбора режима создания образа ── */
+.mode-select-sheet {
+  padding-bottom: 24px;
+}
+
+.mode-select-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.mode-select-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 10px;
+  transition: background 0.15s, border-color 0.15s;
+  color: var(--text);
+}
+
+.mode-select-option:active {
+  background: var(--lav-dim);
+  border-color: var(--lav);
+}
+
+.mode-select-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 36px;
+  text-align: center;
+}
+
+.mode-select-text {
   flex: 1;
   min-width: 0;
 }
 
-.slot-detail-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-dim);
-  margin-bottom: 2px;
-}
-
-.slot-detail-name {
-  font-size: 13px;
-  font-weight: 600;
+.mode-select-name {
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 3px;
 }
 
-.slot-detail-brand {
-  font-size: 11px;
+.mode-select-desc {
+  font-size: 12px;
   color: var(--text-dim);
-  margin-top: 1px;
+  line-height: 1.4;
 }

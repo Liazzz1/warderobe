@@ -22,9 +22,11 @@ interface LookBuilderScreenProps {
   onSaved?: () => void;
   /** Если передан — экран открывается в режиме редактирования этого образа */
   editLook?: Look | null;
+  /** Начальный режим (выбирается до входа в билдер) */
+  initialMode?: BuilderMode;
 }
 
-export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId = null, onSaved, editLook = null }) => {
+export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId = null, onSaved, editLook = null, initialMode }) => {
   const {
     items,
     builderLayers,
@@ -41,7 +43,7 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
   } = useWardrobeStore();
   const [viewingItem, setViewingItem] = useState<ClothingItem | null>(null);
 
-  const [mode, setMode] = useState<BuilderMode>(editLook?.mode ?? 'slots');
+  const [mode, setMode] = useState<BuilderMode>(editLook?.mode ?? initialMode ?? 'slots');
   const [selectedSlots, setSelectedSlots] = useState<Record<Category, ClothingItem | null>>({
     top: null,
     bottom: null,

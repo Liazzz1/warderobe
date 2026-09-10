@@ -5,6 +5,8 @@ import { LookDetailModal } from './LookDetailModal';
 import { LookBuilderScreen } from './LookBuilderScreen';
 import type { Look } from '../types';
 
+type BuilderMode = 'slots' | 'canvas';
+
 export const LooksLibraryScreen: React.FC = () => {
   const {
     items,
@@ -25,12 +27,16 @@ export const LooksLibraryScreen: React.FC = () => {
   const [newFolderName, setNewFolderName] = useState('');
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingLook, setEditingLook] = useState<Look | null>(null);
+  const [chosenMode, setChosenMode] = useState<BuilderMode | null>(null);
+  // Показывать ли экран выбора режима
+  const [showModeSelect, setShowModeSelect] = useState(false);
 
   useEffect(() => {
     fetchLooks();
     fetchFolders();
   }, [fetchLooks, fetchFolders]);
 
+  // ── Билдер ──
   if (showBuilder) {
     return (
       <div>
@@ -42,17 +48,20 @@ export const LooksLibraryScreen: React.FC = () => {
               haptic('light');
               setShowBuilder(false);
               setEditingLook(null);
+              setChosenMode(null);
             }}
           >
-            ← К папкам
+            ← К образам
           </button>
         </div>
         <LookBuilderScreen
           folderId={editingLook ? editingLook.folderId ?? null : currentFolderId}
           editLook={editingLook}
+          initialMode={chosenMode ?? undefined}
           onSaved={() => {
             setShowBuilder(false);
             setEditingLook(null);
+            setChosenMode(null);
           }}
         />
       </div>
@@ -62,7 +71,7 @@ export const LooksLibraryScreen: React.FC = () => {
   const childFolders = folders.filter((f) => f.parentId === currentFolderId);
   const folderLooks = looks.filter((l) => (l.folderId ?? null) === currentFolderId);
 
-  // Хлебные крошки от корня до текущей папки
+  // Хлебные крошки
   const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'Луки' }];
   let cursor = currentFolderId;
   const chain: { id: string; name: string }[] = [];
@@ -203,8 +212,8 @@ export const LooksLibraryScreen: React.FC = () => {
                     position: 'absolute',
                     bottom: 5,
                     left: 5,
-                    fontSize: '12px',
-                    background: 'rgba(0,0,0,0.55)',
+                    fontSize: '11px',
+                    background: 'rgba(0,0,0,0.6)',
                     borderRadius: 6,
                     padding: '1px 5px',
                     lineHeight: '1.6',
@@ -234,18 +243,86 @@ export const LooksLibraryScreen: React.FC = () => {
         </div>
       )}
 
+      {/* FAB — кнопка добавить образ */}
       <button
         className="fab"
         title="Собрать новый образ"
         onClick={() => {
           haptic('medium');
-          clearCanvas();
-          setEditingLook(null);
-          setShowBuilder(true);
+          setShowModeSelect(true);
         }}
       >
         +
       </button>
+
+      {/* ── Модал выбора режима ── */}
+      {showModeSelect && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            haptic('light');
+            setShowModeSelect(false);
+          }}
+        >
+          <div className="modal-sheet mode-select-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div className="mode-select-title">Как создать образ?</div>
+
+            <button
+              className="mode-select-option"
+              onClick={() => {
+                haptic('medium');
+                clearCanvas();
+                setEditingLook(null);
+                setChosenMode('slots');
+                setShowModeSelect(false);
+                setShowBuilder(true);
+              }}
+            >
+              <div className="mode-select-icon">🔲</div>
+              <div className="mode-select-text">
+                <div className="mode-select-name">По слотам</div>
+                <div className="mode-select-desc">Выбери вещи по категориям — верх, низ, обувь и т.д.</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <button
+              className="mode-select-option"
+              onClick={() => {
+                haptic('medium');
+                clearCanvas();
+                setEditingLook(null);
+                setChosenMode('canvas');
+                setShowModeSelect(false);
+                setShowBuilder(true);
+              }}
+            >
+              <div className="mode-select-icon">🎨</div>
+              <div className="mode-select-text">
+                <div className="mode-select-name">Коллаж (Холст)</div>
+                <div className="mode-select-desc">Расставь вещи свободно на холсте как хочешь</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <button
+              className="btn-secondary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                haptic('light');
+                setShowModeSelect(false);
+              }}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
 
       {viewingLook && (
         <LookDetailModal
@@ -255,6 +332,7 @@ export const LooksLibraryScreen: React.FC = () => {
           onDelete={() => removeLook(viewingLook.id)}
           onEdit={() => {
             setEditingLook(viewingLook);
+            setChosenMode(viewingLook.mode ?? 'slots');
             setViewingLook(null);
             setShowBuilder(true);
           }}
