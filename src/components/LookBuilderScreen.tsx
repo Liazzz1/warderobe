@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useWardrobeStore } from '../store/useWardrobeStore';
 import { haptic, hapticSuccess, tg } from '../lib/telegram';
 import { api } from '../lib/api';
-import { composeLookPreview, composeSlotsPreview } from '../lib/composePreview';
+import { composeLookPreview } from '../lib/composePreview';
 import { ItemDetailModal } from './ItemDetailModal';
 import type { Category, ClothingItem, Look } from '../types';
 
@@ -133,13 +133,13 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
         rotation: 0,
         zIndex: index + 1,
       }));
-
-      const previewUrl = await composeSlotsPreview(selectedSlots).catch(() => undefined);
+      // Для слот-образов НЕ генерируем canvas-превью (CORS проблемы на мобильных).
+      // В библиотеке будет показан живой CSS-коллаж из картинок вещей.
 
       if (editLook && editLook.mode !== 'canvas') {
         const updated = await api.updateLook(editLook.id, {
           layers,
-          previewUrl,
+          previewUrl: undefined,
           folderId: editLook.folderId ?? folderId,
           mode: 'slots',
         });
@@ -148,7 +148,7 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
         const saved = await api.saveLook({
           name: `Слот-образ ${new Date().toLocaleDateString('ru-RU')}`,
           layers,
-          previewUrl,
+          previewUrl: undefined,
           folderId,
           mode: 'slots',
         });

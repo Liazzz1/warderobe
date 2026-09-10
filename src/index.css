@@ -1375,3 +1375,36 @@ input.text-input::placeholder {
   color: var(--text-dim);
   line-height: 1.4;
 }
+
+/* ── Живой CSS-коллаж для превью слот-образов ── */
+.slot-preview-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+}
+
+.slot-preview-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.slot-preview-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}
+
+.slot-preview-more {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
