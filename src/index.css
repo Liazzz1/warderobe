@@ -1531,33 +1531,14 @@ input.text-input::placeholder {
   padding: 0;
 }
 
-/* ── Кнопки шеринга и сохранения лука ── */
+/* ── Кнопка сохранения лука ── */
 .look-share-actions {
   display: flex;
-  gap: 10px;
+  width: 100%;
   margin-top: 10px;
 }
-.btn-share-tg {
-  flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  background: #229ed9;
-  border: none;
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-.btn-share-tg:active {
-  opacity: 0.85;
-}
 .btn-download-look {
-  flex: 1;
+  width: 100%;
   padding: 12px;
   border-radius: 12px;
   background: var(--bg-raised);
@@ -1570,6 +1551,10 @@ input.text-input::placeholder {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.btn-download-look:active {
+  opacity: 0.85;
 }
 
 /* ── Редактирование вещи в модалке ── */
