@@ -24,8 +24,15 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localho
 # Файлы храним локально на Railway Volume (без Cloudflare/S3).
 # STORAGE_DIR должен указывать на путь, куда примонтирован Volume (например /data).
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/data")
-ITEMS_DIR = os.path.join(STORAGE_DIR, "items")
-os.makedirs(ITEMS_DIR, exist_ok=True)
+try:
+    ITEMS_DIR = os.path.join(STORAGE_DIR, "items")
+    os.makedirs(ITEMS_DIR, exist_ok=True)
+except Exception as e:
+    # Защита от отсутствия прав /data при старте контейнера без смонтированного volume
+    print(f"[STORAGE] Warning: cannot create {STORAGE_DIR}/items ({e}). Falling back to local storage.", flush=True)
+    STORAGE_DIR = os.path.join(os.path.dirname(__file__), "storage")
+    ITEMS_DIR = os.path.join(STORAGE_DIR, "items")
+    os.makedirs(ITEMS_DIR, exist_ok=True)
 
 # Публичный домен сервиса. Railway сам прокидывает RAILWAY_PUBLIC_DOMAIN
 # (без схемы), если у сервиса включён публичный домен — используем его,
@@ -52,7 +59,7 @@ class CORSStaticFiles(StaticFiles):
         return response
 
 # Отдаём загруженные картинки напрямую как статику с CORS-заголовками: /files/items/<tg_id>/<id>.png
-app.mount("/files", CORSStaticFiles(directory=STORAGE_DIR), name="files")
+app.mount("/files", CORSStaticFiles(directory=STORAGE_DIR, check_dir=False), name="files")
 
 @app.on_event("startup")
 def run_migrations():
@@ -61,16 +68,17 @@ def run_migrations():
     schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
     if not os.path.exists(schema_path):
         return
-    with open(schema_path, "r", encoding="utf-8") as f:
-        sql = f.read()
     try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        with open(schema_path, "r", encoding="utf-8") as f:
+            sql = f.read()
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=5)
+        conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(sql)
-        conn.commit()
         conn.close()
+        print("[MIGRATION] Migrations executed successfully", flush=True)
     except Exception as e:
-        print(f"[MIGRATION] Warning: {e}")
+        print(f"[MIGRATION] Warning: {e}", flush=True)
 
 @app.get("/")
 @app.get("/health")
