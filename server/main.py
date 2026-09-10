@@ -235,13 +235,9 @@ class SaveLookRequest(BaseModel):
     layers: List[dict]
     previewUrl: Optional[str] = None
     folderId: Optional[str] = None
-    mode: str = "slots"
 
-class UpdateLookRequest(BaseModel):
-    layers: Optional[List[dict]] = None
-    previewUrl: Optional[str] = None
+class MoveLookRequest(BaseModel):
     folderId: Optional[str] = None
-    mode: Optional[str] = None
 
 @app.get("/looks")
 def list_looks(user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
@@ -249,7 +245,7 @@ def list_looks(user: dict = Depends(validate_telegram_init_data), db=Depends(get
     with db.cursor() as cur:
         cur.execute(
             """
-            SELECT id, user_id AS "userId", name, layers, preview_url AS "previewUrl", mode,
+            SELECT id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
                    folder_id AS "folderId", created_at AS "createdAt"
             FROM looks WHERE user_id = %s ORDER BY created_at DESC
             """,
@@ -266,12 +262,12 @@ def save_look(body: SaveLookRequest, user: dict = Depends(validate_telegram_init
     with db.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO looks (id, user_id, name, layers, preview_url, mode, folder_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl", mode,
+            INSERT INTO looks (id, user_id, name, layers, preview_url, folder_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
                       folder_id AS "folderId", created_at AS "createdAt";
             """,
-            (look_id, tg_id, body.name, json.dumps(body.layers), body.previewUrl, body.mode, body.folderId, datetime.utcnow())
+            (look_id, tg_id, body.name, json.dumps(body.layers), body.previewUrl, body.folderId, datetime.utcnow())
         )
         saved_look = cur.fetchone()
         db.commit()
@@ -279,32 +275,17 @@ def save_look(body: SaveLookRequest, user: dict = Depends(validate_telegram_init
     return saved_look
 
 @app.patch("/looks/{look_id}")
-def update_look(look_id: str, body: UpdateLookRequest, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
+def move_look(look_id: str, body: MoveLookRequest, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
     tg_id = str(user.get("id"))
-    changes = body.dict(exclude_unset=True)
-    if not changes:
-        raise HTTPException(status_code=400, detail="No look changes supplied")
-
-    column_map = {
-        "layers": ("layers", lambda value: json.dumps(value)),
-        "previewUrl": ("preview_url", lambda value: value),
-        "folderId": ("folder_id", lambda value: value),
-        "mode": ("mode", lambda value: value),
-    }
-    assignments = []
-    values = []
-    for field, value in changes.items():
-        column, transform = column_map[field]
-        assignments.append(f"{column} = %s")
-        values.append(transform(value))
-
     with db.cursor() as cur:
         cur.execute(
-            f'''UPDATE looks SET {", ".join(assignments)}
-                WHERE id = %s AND user_id = %s
-                RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl", mode,
-                          folder_id AS "folderId", created_at AS "createdAt";''',
-            (*values, look_id, tg_id)
+            """
+            UPDATE looks SET folder_id = %s
+            WHERE id = %s AND user_id = %s
+            RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
+                      folder_id AS "folderId", created_at AS "createdAt";
+            """,
+            (body.folderId, look_id, tg_id)
         )
         updated = cur.fetchone()
         db.commit()
