@@ -73,9 +73,9 @@ export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, o
             )}
           </div>
         ) : (
-          /* ── Canvas-вид: превью картинка + список вещей ── */
+          /* ── Canvas-вид: крупное вертикальное превью + список вещей ── */
           <>
-            <div className="detail-image checker-bg">
+            <div className="canvas-detail-view">
               {look.previewUrl ? (
                 <img src={look.previewUrl} alt={look.name} />
               ) : (
