@@ -191,12 +191,29 @@ export const LooksLibraryScreen: React.FC = () => {
                 setViewingLook(look);
               }}
             >
-              <div className="thumb checker-bg" style={{ height: '100%', borderRadius: 12 }}>
+              <div className="thumb checker-bg" style={{ height: '100%', borderRadius: 12, position: 'relative' }}>
                 {look.previewUrl ? (
                   <img src={look.previewUrl} alt={look.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: '24px' }}>✨</span>
                 )}
+                {/* Бейдж режима */}
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 5,
+                    left: 5,
+                    fontSize: '12px',
+                    background: 'rgba(0,0,0,0.55)',
+                    borderRadius: 6,
+                    padding: '1px 5px',
+                    lineHeight: '1.6',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                  title={look.mode === 'slots' ? 'По слотам' : 'Коллаж'}
+                >
+                  {look.mode === 'slots' ? '🔲' : '🎨'}
+                </span>
               </div>
               <div className="look-name">{look.name}</div>
               <button

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useWardrobeStore } from '../store/useWardrobeStore';
 import { haptic, hapticSuccess, tg } from '../lib/telegram';
 import { api } from '../lib/api';
-import { composeLookPreview } from '../lib/composePreview';
+import { composeLookPreview, composeSlotsPreview } from '../lib/composePreview';
 import { ItemDetailModal } from './ItemDetailModal';
 import type { Category, ClothingItem, Look } from '../types';
 
@@ -132,7 +132,7 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
         zIndex: index + 1,
       }));
 
-      const previewUrl = await composeLookPreview(layers, items).catch(() => undefined);
+      const previewUrl = await composeSlotsPreview(selectedSlots).catch(() => undefined);
 
       if (editLook && editLook.mode !== 'canvas') {
         const updated = await api.updateLook(editLook.id, {

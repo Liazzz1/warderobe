@@ -103,3 +103,64 @@ export async function composeLookPreview(
 
   return canvas.toDataURL('image/png', 0.85);
 }
+
+/**
+ * Превью для слот-образов: вещи выстраиваются вертикально (как реальный outfit),
+ * в порядке носки — сверху вниз: верхняя одежда → верх/платье → низ → обувь → аксессуар.
+ * Это визуально отличается от flat-lay для холста.
+ */
+export async function composeSlotsPreview(
+  slots: Partial<Record<Category, ClothingItem | null>>,
+): Promise<string> {
+  const SLOT_ORDER: Category[] = ['outerwear', 'top', 'dress', 'bottom', 'shoes', 'accessory'];
+  const activeItems = SLOT_ORDER.map((cat) => slots[cat]).filter(Boolean) as ClothingItem[];
+
+  const canvas = document.createElement('canvas');
+  canvas.width = CANVAS_CSS_WIDTH * RENDER_SCALE;
+  canvas.height = CANVAS_CSS_HEIGHT * RENDER_SCALE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+
+  ctx.fillStyle = '#16161a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (activeItems.length === 0) {
+    return canvas.toDataURL('image/png', 0.85);
+  }
+
+  const padding = PADDING * RENDER_SCALE;
+  const gap = GAP * RENDER_SCALE;
+
+  // Вертикальная колонка: одна колонка если ≤ 3 вещи, две колонки если > 3
+  const cols = activeItems.length <= 3 ? 1 : 2;
+  const rows = Math.ceil(activeItems.length / cols);
+  const cellW = (canvas.width - padding * 2 - gap * (cols - 1)) / cols;
+  const cellH = (canvas.height - padding * 2 - gap * (rows - 1)) / rows;
+
+  for (let i = 0; i < activeItems.length; i++) {
+    const item = activeItems[i];
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cellX = padding + col * (cellW + gap);
+    const cellY = padding + row * (cellH + gap);
+
+    try {
+      const img = await loadImage(item.imageUrl);
+      const fitScale = Math.min(cellW / img.width, cellH / img.height);
+      const drawW = img.width * fitScale * 0.88;
+      const drawH = img.height * fitScale * 0.88;
+      const dx = cellX + (cellW - drawW) / 2;
+      const dy = cellY + (cellH - drawH) / 2;
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 12 * RENDER_SCALE;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      ctx.restore();
+    } catch (err) {
+      console.warn('Failed to draw item for slots preview', err);
+    }
+  }
+
+  return canvas.toDataURL('image/png', 0.85);
+}
