@@ -11,11 +11,21 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 
 export const COLOR_OPTIONS = [
   { label: 'Чёрный', hex: '#1c1c1c' },
+  { label: 'Графит', hex: '#4a4a50' },
+  { label: 'Серый', hex: '#8e8e93' },
   { label: 'Белый', hex: '#f6f3ec' },
+  { label: 'Молочный', hex: '#ede8dd' },
   { label: 'Бежевый', hex: '#c9b790' },
+  { label: 'Коричневый', hex: '#5d3a24' },
+  { label: 'Хаки', hex: '#5f644b' },
+  { label: 'Оливковый', hex: '#41533b' },
+  { label: 'Тёмно-синий', hex: '#1d2a44' },
   { label: 'Синий', hex: '#3a4a6b' },
-  { label: 'Лавандовый', hex: '#b9a6ff' },
+  { label: 'Голубой', hex: '#82a9cf' },
+  { label: 'Бордовый', hex: '#631826' },
   { label: 'Терракот', hex: '#e8895f' },
+  { label: 'Лавандовый', hex: '#b9a6ff' },
+  { label: 'Шалфей', hex: '#8fa89b' },
 ];
 
 export interface ClothingItem {

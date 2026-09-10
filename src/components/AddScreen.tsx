@@ -4,6 +4,7 @@ import { useWardrobeStore } from '../store/useWardrobeStore';
 import { haptic, hapticSuccess } from '../lib/telegram';
 import { removeImageBackground } from '../lib/bgRemoval';
 import { CATEGORY_LABELS, COLOR_OPTIONS, type Category } from '../types';
+import { extractDominantColors } from '../lib/colorExtractor';
 
 interface AddScreenProps {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ interface AddScreenProps {
 
 export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
   const addItem = useWardrobeStore((s) => s.addItem);
 
   const [file, setFile] = useState<File | Blob | null>(null);
@@ -18,6 +20,7 @@ export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
   const [bgRemoved, setBgRemoved] = useState(false);
   const [category, setCategory] = useState<Category>('top');
   const [color, setColor] = useState<string>(COLOR_OPTIONS[0].hex);
+  const [extractedColors, setExtractedColors] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -27,8 +30,9 @@ export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
 
+    const initialUrl = URL.createObjectURL(selected);
     setFile(selected);
-    setPreview(URL.createObjectURL(selected));
+    setPreview(initialUrl);
     setBgRemoved(false);
     setIsProcessing(true);
     setStatusText('Удаляем фон…');
@@ -46,9 +50,21 @@ export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
       setBgRemoved(true);
       setStatusText('✓ Фон удалён');
       hapticSuccess();
+
+      // Автоматически извлекаем палитру цветов из вырезанной вещи
+      const detected = await extractDominantColors(url);
+      if (detected.length > 0) {
+        setExtractedColors(detected);
+        setColor(detected[0]); // Выбираем главный доминирующий цвет автоматически
+      }
     } catch (err) {
       console.error('Background removal failed, using original photo', err);
       setStatusText('Не удалось удалить фон, используем оригинал');
+      const detected = await extractDominantColors(initialUrl);
+      if (detected.length > 0) {
+        setExtractedColors(detected);
+        setColor(detected[0]);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -94,7 +110,7 @@ export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
         onClick={() => fileInputRef.current?.click()}
       >
         {preview ? (
-          <div className={`preview-img ${bgRemoved ? 'checker-bg' : ''}`}>
+          <div className={`preview-img ${bgRemoved ? 'studio-bg' : ''}`}>
             <img src={preview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             {isProcessing && <div className="scanline" />}
           </div>
@@ -136,14 +152,71 @@ export const AddScreen: React.FC<AddScreenProps> = ({ onSuccess }) => {
         </div>
       </div>
 
+      {/* Определение цвета с фото */}
+      {extractedColors.length > 0 && (
+        <div className="field">
+          <label>Цвета с фото (автоанализ)</label>
+          <div className="field-row">
+            {extractedColors.map((hex, idx) => (
+              <button
+                key={hex}
+                type="button"
+                className={`pill-select color-chip-btn ${color.toLowerCase() === hex.toLowerCase() ? 'sel' : ''}`}
+                onClick={() => {
+                  haptic('light');
+                  setColor(hex);
+                }}
+              >
+                <span
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: hex,
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.2)',
+                  }}
+                />
+                <span>Цвет {idx + 1}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="field">
-        <label>Цвет</label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label>{extractedColors.length > 0 ? 'Или выберите из палитры' : 'Цвет'}</label>
+          <button
+            type="button"
+            className="color-picker-trigger"
+            onClick={() => colorInputRef.current?.click()}
+          >
+            <span
+              style={{
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                backgroundColor: color,
+                display: 'inline-block',
+                border: '1px solid var(--line)',
+              }}
+            />
+            <span>Свой цвет</span>
+            <input
+              ref={colorInputRef}
+              type="color"
+              value={color.startsWith('#') ? color : '#1c1c1c'}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+              onChange={(e) => setColor(e.target.value)}
+            />
+          </button>
+        </div>
         <div className="field-row">
           {COLOR_OPTIONS.map((c) => (
             <button
               key={c.hex}
               type="button"
-              className={`pill-select ${color === c.hex ? 'sel' : ''}`}
+              className={`pill-select ${color.toLowerCase() === c.hex.toLowerCase() ? 'sel' : ''}`}
               onClick={() => {
                 haptic('light');
                 setColor(c.hex);

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useWardrobeStore } from '../store/useWardrobeStore';
 import { haptic } from '../lib/telegram';
-import type { ClothingItem } from '../types';
+import { isSlotLook, type ClothingItem } from '../types';
+import { LookThumbnail } from './LookThumbnail';
 
 const WEEKDAYS = ['ВОСКРЕСЕНЬЕ', 'ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА'];
 const MONTHS = [
@@ -118,7 +119,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <button className="home-recent-x" onClick={(e) => handleDeleteItem(e, item)}>
                   ×
                 </button>
-                <div className="home-recent-thumb checker-bg">
+                <div className="home-recent-thumb studio-bg">
                   <img src={item.imageUrl} alt={item.name} />
                 </div>
                 <div className="home-recent-name">{item.name}</div>
@@ -142,7 +143,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <p>Соберите первый образ на вкладке «Луки»</p>
         </div>
       ) : (
-        recentLooks.map((look, idx) => {
+        recentLooks.map((look) => {
           const lookItems = look.layers
             .map((l) => items.find((i) => i.id === l.itemId))
             .filter(Boolean) as ClothingItem[];
@@ -155,17 +156,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 onOpenLook(look.id);
               }}
             >
-              <div className="home-look-grid">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="home-look-cell checker-bg">
-                    {lookItems[i] && <img src={lookItems[i].imageUrl} alt="" />}
-                  </div>
-                ))}
+              <div style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 12, overflow: 'hidden' }}>
+                <LookThumbnail look={look} items={items} />
               </div>
               <div className="home-look-info">
-                <div className="home-look-num">{idx + 1}</div>
+                <div className="home-look-num" style={{ fontSize: '14px', fontWeight: 700 }}>
+                  {look.name}
+                </div>
                 <div className="home-look-meta">
-                  {lookItems.length} {lookItems.length === 1 ? 'вещь' : 'вещей'} ·{' '}
+                  {isSlotLook(look) ? '🔲 По слотам' : '🎨 Коллаж'} · {lookItems.length}{' '}
+                  {lookItems.length === 1 ? 'вещь' : 'вещей'} ·{' '}
                   {new Date(look.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
                 </div>
               </div>

@@ -412,7 +412,7 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
             {items.map((item) => (
               <div
                 key={item.id}
-                className="tray-item checker-bg"
+                className="tray-item studio-bg"
                 style={{ position: 'relative' }}
                 onClick={() => {
                   haptic('light');

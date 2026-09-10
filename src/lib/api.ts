@@ -124,6 +124,23 @@ export const api = {
     return saved;
   },
 
+  async updateItem(
+    id: string,
+    patch: Partial<Pick<ClothingItem, 'name' | 'brand' | 'category' | 'color'>>
+  ): Promise<ClothingItem | null> {
+    if (USE_MOCKS) {
+      await readyPromise;
+      const updated = await dbUpdate<ClothingItem>(STORES.items, id, (item) => ({ ...item, ...patch }));
+      return updated ?? null;
+    }
+    const updated = await request<ClothingItem>(`/items/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    void dbPut(STORES.items, updated).catch(() => {});
+    return updated;
+  },
+
   async deleteItem(id: string): Promise<void> {
     if (USE_MOCKS) {
       await readyPromise;

@@ -14,14 +14,21 @@ export const ClosetScreen: React.FC<ClosetScreenProps> = ({ onNavigateToAdd }) =
   const { items, activeCategory, setActiveCategory, fetchItems, removeItem, loading } = useWardrobeStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewingItem, setViewingItem] = useState<ClothingItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
-  const filteredItems = activeCategory === 'all' 
-    ? items 
-    : items.filter((it) => it.category === activeCategory);
+  const filteredItems = items.filter((it) => {
+    const matchesCategory = activeCategory === 'all' || it.category === activeCategory;
+    if (!matchesCategory) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesName = it.name.toLowerCase().includes(q);
+    const matchesBrand = it.brand ? it.brand.toLowerCase().includes(q) : false;
+    return matchesName || matchesBrand;
+  });
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -37,6 +44,34 @@ export const ClosetScreen: React.FC<ClosetScreenProps> = ({ onNavigateToAdd }) =
 
   return (
     <div className="screen-content">
+      {/* Поиск по гардеробу */}
+      <div className="closet-search-wrap">
+        <span className="closet-search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </span>
+        <input
+          className="closet-search-input"
+          placeholder="Поиск по названию или бренду…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            className="closet-search-clear"
+            onClick={() => {
+              haptic('light');
+              setSearchQuery('');
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Категории */}
       <div className="chips">
         {CATEGORIES.map((cat) => (
@@ -92,7 +127,7 @@ export const ClosetScreen: React.FC<ClosetScreenProps> = ({ onNavigateToAdd }) =
                   <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <div className="thumb checker-bg">
+              <div className="thumb studio-bg">
                 <img src={item.imageUrl} alt={item.name} />
               </div>
               <div className="meta">

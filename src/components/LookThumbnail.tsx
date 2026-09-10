@@ -23,7 +23,7 @@ export const LookThumbnail: React.FC<LookThumbnailProps> = ({
 
   return (
     <div
-      className={`thumb checker-bg ${className}`}
+      className={`thumb studio-bg ${className}`}
       style={{ height: '100%', borderRadius: 12, position: 'relative' }}
     >
       {isSlot ? (

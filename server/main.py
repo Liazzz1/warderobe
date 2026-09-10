@@ -248,6 +248,51 @@ async def upload_item(
 
     return saved_item
 
+class UpdateItemRequest(BaseModel):
+    name: Optional[str] = None
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    color: Optional[str] = None
+
+@app.patch("/items/{item_id}")
+def update_item(item_id: str, body: UpdateItemRequest, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
+    tg_id = str(user.get("id"))
+    sets = []
+    params = []
+
+    if body.name is not None:
+        sets.append("name = %s")
+        params.append(body.name)
+    if 'brand' in body.model_fields_set:
+        sets.append("brand = %s")
+        params.append(body.brand)
+    if body.category is not None:
+        sets.append("category = %s")
+        params.append(body.category)
+    if body.color is not None:
+        sets.append("color = %s")
+        params.append(body.color)
+
+    if not sets:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    params.extend([item_id, tg_id])
+
+    with db.cursor() as cur:
+        cur.execute(
+            f"""
+            UPDATE items SET {', '.join(sets)}
+            WHERE id = %s AND user_id = %s
+            RETURNING id, user_id AS "userId", category, color, brand, name, image_url AS "imageUrl", created_at AS "createdAt";
+            """,
+            params
+        )
+        updated = cur.fetchone()
+        db.commit()
+    if not updated:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return updated
+
 @app.delete("/items/{item_id}")
 def delete_item(item_id: str, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
     tg_id = str(user.get("id"))

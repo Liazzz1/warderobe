@@ -18,6 +18,10 @@ interface WardrobeState {
   fetchLooks: () => Promise<void>;
   fetchFolders: () => Promise<void>;
   addItem: (item: ClothingItem) => void;
+  updateItem: (
+    id: string,
+    patch: Partial<Pick<ClothingItem, 'name' | 'brand' | 'category' | 'color'>>
+  ) => Promise<ClothingItem | null>;
   removeItem: (id: string) => Promise<void>;
   addLook: (look: Look) => void;
   updateLookInStore: (look: Look) => void;
@@ -70,6 +74,13 @@ export const useWardrobeStore = create<WardrobeState>((set, get) => ({
   },
 
   addItem: (item) => set({ items: [item, ...get().items] }),
+
+  updateItem: async (id, patch) => {
+    const updated = await api.updateItem(id, patch);
+    if (!updated) return null;
+    set({ items: get().items.map((it) => (it.id === id ? updated : it)) });
+    return updated;
+  },
 
   removeItem: async (id) => {
     await api.deleteItem(id);
