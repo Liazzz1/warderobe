@@ -76,6 +76,7 @@ export async function composeLookPreview(
   const cellW = (canvas.width - padding * 2 - gap * (cols - 1)) / cols;
   const cellH = (canvas.height - padding * 2 - gap * (rows - 1)) / rows;
 
+  let successCount = 0;
   for (let i = 0; i < lookItems.length; i++) {
     const item = lookItems[i];
     const col = i % cols;
@@ -96,9 +97,14 @@ export async function composeLookPreview(
       ctx.shadowBlur = 10 * RENDER_SCALE;
       ctx.drawImage(img, dx, dy, drawW, drawH);
       ctx.restore();
+      successCount++;
     } catch (err) {
       console.warn('Failed to draw item for preview', err);
     }
+  }
+
+  if (successCount === 0) {
+    throw new Error('Could not draw any items onto preview canvas');
   }
 
   return canvas.toDataURL('image/png', 0.85);

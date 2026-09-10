@@ -4,7 +4,7 @@ import { haptic, hapticSuccess, tg } from '../lib/telegram';
 import { api } from '../lib/api';
 import { composeLookPreview } from '../lib/composePreview';
 import { ItemDetailModal } from './ItemDetailModal';
-import type { Category, ClothingItem, Look } from '../types';
+import { isSlotLook, type Category, type ClothingItem, type Look } from '../types';
 
 type BuilderMode = 'slots' | 'canvas';
 
@@ -43,7 +43,9 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
   } = useWardrobeStore();
   const [viewingItem, setViewingItem] = useState<ClothingItem | null>(null);
 
-  const [mode, setMode] = useState<BuilderMode>(editLook?.mode ?? initialMode ?? 'slots');
+  const [mode, setMode] = useState<BuilderMode>(
+    editLook ? (isSlotLook(editLook) ? 'slots' : 'canvas') : (initialMode ?? 'slots')
+  );
   const [selectedSlots, setSelectedSlots] = useState<Record<Category, ClothingItem | null>>({
     top: null,
     bottom: null,
@@ -58,7 +60,7 @@ export const LookBuilderScreen: React.FC<LookBuilderScreenProps> = ({ folderId =
   useEffect(() => {
     if (!editLook) return;
 
-    if (editLook.mode === 'canvas') {
+    if (!isSlotLook(editLook)) {
       loadLayersToCanvas(editLook.layers);
     } else {
       const slots: Record<Category, ClothingItem | null> = {

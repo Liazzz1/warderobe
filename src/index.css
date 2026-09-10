@@ -1376,15 +1376,16 @@ input.text-input::placeholder {
   line-height: 1.4;
 }
 
-/* ── Живой CSS-коллаж для превью слот-образов ── */
+/* ── Живой CSS-коллаж для превью слот-образов (4 квадранта) ── */
 .slot-preview-grid {
   width: 100%;
   height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 2px;
-  padding: 3px;
+  gap: 4px;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .slot-preview-cell {
@@ -1392,19 +1393,23 @@ input.text-input::placeholder {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 4px;
-  background: var(--bg);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 .slot-preview-cell img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 3px;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .slot-preview-more {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-dim);
 }

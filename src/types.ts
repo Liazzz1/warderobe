@@ -51,6 +51,13 @@ export interface Look {
   mode?: 'slots' | 'canvas';
 }
 
+/** Надёжно определяет, является ли образ слотовым (с поддержкой старых записей из БД) */
+export function isSlotLook(look: Look): boolean {
+  if (look.mode === 'slots') return true;
+  if (look.mode === 'canvas') return false;
+  return look.name.toLowerCase().includes('слот') || !look.previewUrl;
+}
+
 export interface LookFolder {
   id: string;
   userId: string;

@@ -43,8 +43,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Отдаём загруженные картинки напрямую как статику: /files/items/<tg_id>/<id>.png
-app.mount("/files", StaticFiles(directory=STORAGE_DIR), name="files")
+class CORSStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+# Отдаём загруженные картинки напрямую как статику с CORS-заголовками: /files/items/<tg_id>/<id>.png
+app.mount("/files", CORSStaticFiles(directory=STORAGE_DIR), name="files")
+
+@app.on_event("startup")
+def run_migrations():
+    """Применяет schema.sql при каждом старте — CREATE IF NOT EXISTS идемпотентны,
+    а DO $$ блоки добавляют новые колонки только если их ещё нет."""
+    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+    if not os.path.exists(schema_path):
+        return
+    with open(schema_path, "r", encoding="utf-8") as f:
+        sql = f.read()
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[MIGRATION] Warning: {e}")
 
 @app.get("/")
 @app.get("/health")
@@ -235,9 +261,14 @@ class SaveLookRequest(BaseModel):
     layers: List[dict]
     previewUrl: Optional[str] = None
     folderId: Optional[str] = None
+    mode: Optional[str] = None
 
-class MoveLookRequest(BaseModel):
+class UpdateLookRequest(BaseModel):
+    name: Optional[str] = None
+    layers: Optional[List[dict]] = None
+    previewUrl: Optional[str] = None
     folderId: Optional[str] = None
+    mode: Optional[str] = None
 
 @app.get("/looks")
 def list_looks(user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
@@ -246,7 +277,8 @@ def list_looks(user: dict = Depends(validate_telegram_init_data), db=Depends(get
         cur.execute(
             """
             SELECT id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
-                   folder_id AS "folderId", created_at AS "createdAt"
+                   folder_id AS "folderId", created_at AS "createdAt",
+                   COALESCE(mode, 'canvas') AS "mode"
             FROM looks WHERE user_id = %s ORDER BY created_at DESC
             """,
             (tg_id,)
@@ -262,12 +294,13 @@ def save_look(body: SaveLookRequest, user: dict = Depends(validate_telegram_init
     with db.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO looks (id, user_id, name, layers, preview_url, folder_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO looks (id, user_id, name, layers, preview_url, folder_id, created_at, mode)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
-                      folder_id AS "folderId", created_at AS "createdAt";
+                      folder_id AS "folderId", created_at AS "createdAt",
+                      COALESCE(mode, 'canvas') AS "mode";
             """,
-            (look_id, tg_id, body.name, json.dumps(body.layers), body.previewUrl, body.folderId, datetime.utcnow())
+            (look_id, tg_id, body.name, json.dumps(body.layers), body.previewUrl, body.folderId, datetime.utcnow(), body.mode)
         )
         saved_look = cur.fetchone()
         db.commit()
@@ -275,23 +308,51 @@ def save_look(body: SaveLookRequest, user: dict = Depends(validate_telegram_init
     return saved_look
 
 @app.patch("/looks/{look_id}")
-def move_look(look_id: str, body: MoveLookRequest, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
+def update_look(look_id: str, body: UpdateLookRequest, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
     tg_id = str(user.get("id"))
+
+    # Строим SET динамически — обновляем только переданные поля
+    sets = []
+    params = []
+
+    if body.name is not None:
+        sets.append("name = %s")
+        params.append(body.name)
+    if body.layers is not None:
+        sets.append("layers = %s")
+        params.append(json.dumps(body.layers))
+    if body.previewUrl is not None:
+        sets.append("preview_url = %s")
+        params.append(body.previewUrl)
+    if 'folderId' in body.model_fields_set:
+        sets.append("folder_id = %s")
+        params.append(body.folderId)
+    if body.mode is not None:
+        sets.append("mode = %s")
+        params.append(body.mode)
+
+    if not sets:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    params.extend([look_id, tg_id])
+
     with db.cursor() as cur:
         cur.execute(
-            """
-            UPDATE looks SET folder_id = %s
+            f"""
+            UPDATE looks SET {', '.join(sets)}
             WHERE id = %s AND user_id = %s
             RETURNING id, user_id AS "userId", name, layers, preview_url AS "previewUrl",
-                      folder_id AS "folderId", created_at AS "createdAt";
+                      folder_id AS "folderId", created_at AS "createdAt",
+                      COALESCE(mode, 'canvas') AS "mode";
             """,
-            (body.folderId, look_id, tg_id)
+            params
         )
         updated = cur.fetchone()
         db.commit()
     if not updated:
         raise HTTPException(status_code=404, detail="Look not found")
     return updated
+
 
 @app.delete("/looks/{look_id}")
 def delete_look(look_id: str, user: dict = Depends(validate_telegram_init_data), db=Depends(get_db)):
@@ -300,6 +361,7 @@ def delete_look(look_id: str, user: dict = Depends(validate_telegram_init_data),
         cur.execute("DELETE FROM looks WHERE id = %s AND user_id = %s", (look_id, tg_id))
         db.commit()
     return {"status": "ok"}
+
 
 # ----------------- Папки -----------------
 

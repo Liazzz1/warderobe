@@ -57,8 +57,21 @@ async function fetchWithCache<T extends { id: string }>(
   await readyPromise;
   try {
     const fresh = await request<T[]>(path);
-    // фоновая синхронизация кэша, не блокируем возврат данных
-    void Promise.all(fresh.map((row) => dbPut(store, row))).catch(() => {});
+    // фоновая синхронизация кэша: удаляем удалённые и обновляем актуальные
+    void (async () => {
+      try {
+        const freshIds = new Set(fresh.map((r) => r.id));
+        const cached = await dbGetAll<T>(store);
+        for (const c of cached) {
+          if (!freshIds.has(c.id)) {
+            await dbDelete(store, c.id);
+          }
+        }
+        for (const row of fresh) {
+          await dbPut(store, row);
+        }
+      } catch {}
+    })();
     return fresh;
   } catch (err) {
     if (isNetworkError(err)) {
@@ -176,6 +189,7 @@ export const api = {
       await readyPromise;
       return dbUpdate<Look>(STORES.looks, id, (look) => ({ ...look, folderId }));
     }
+    // Отправляем folderId явно (даже null), сервер обновит поле
     const updated = await request<Look>(`/looks/${id}`, { method: 'PATCH', body: JSON.stringify({ folderId }) });
     void dbPut(STORES.looks, updated).catch(() => {});
     return updated;

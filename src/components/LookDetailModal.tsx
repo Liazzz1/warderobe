@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Look, ClothingItem, Category } from '../types';
+import { isSlotLook, CATEGORY_LABELS, type Look, type ClothingItem } from '../types';
 import { haptic } from '../lib/telegram';
 
 interface LookDetailModalProps {
@@ -10,35 +10,18 @@ interface LookDetailModalProps {
   onEdit: () => void;
 }
 
-const SLOT_CONFIG: { category: Category; label: string }[] = [
-  { category: 'outerwear', label: 'Верхняя одежда' },
-  { category: 'top', label: 'Верх' },
-  { category: 'dress', label: 'Платье' },
-  { category: 'bottom', label: 'Низ' },
-  { category: 'shoes', label: 'Обувь' },
-  { category: 'accessory', label: 'Аксессуар' },
-];
-
 export const LookDetailModal: React.FC<LookDetailModalProps> = ({ look, items, onClose, onDelete, onEdit }) => {
-  const isSlots = look.mode === 'slots';
+  const isSlots = isSlotLook(look);
 
-  // Слот-режим: нумерованный список вещей по категориям
-  const slotItems: { num: number; label: string; item: ClothingItem }[] = [];
-  if (isSlots) {
-    let num = 1;
-    for (const slot of SLOT_CONFIG) {
-      const layer = look.layers.find((l) => {
-        const it = items.find((i) => i.id === l.itemId);
-        return it?.category === slot.category;
-      });
-      if (layer) {
-        const item = items.find((i) => i.id === layer.itemId);
-        if (item) {
-          slotItems.push({ num: num++, label: slot.label, item });
-        }
-      }
-    }
-  }
+  // Слот-режим: нумерованный список вещей из слоёв образа
+  const slotItems = look.layers
+    .map((l, index) => {
+      const item = items.find((i) => i.id === l.itemId);
+      if (!item) return null;
+      const label = CATEGORY_LABELS[item.category] || 'Вещь';
+      return { num: index + 1, label, item };
+    })
+    .filter(Boolean) as { num: number; label: string; item: ClothingItem }[];
 
   // Canvas-режим: все вещи по порядку
   const lookItems = look.layers

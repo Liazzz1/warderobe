@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useWardrobeStore } from '../store/useWardrobeStore';
 import { getTelegramUser } from '../lib/telegram';
 import { isSyncEnabled } from '../lib/api';
+import { LookThumbnail } from './LookThumbnail';
 
 export const ProfileScreen: React.FC = () => {
   const { items, looks, fetchLooks } = useWardrobeStore();
@@ -76,12 +77,8 @@ export const ProfileScreen: React.FC = () => {
       ) : (
         <div className="grid">
           {looks.map((look) => (
-            <div key={look.id} className="look-thumb">
-              {look.previewUrl ? (
-                <img src={look.previewUrl} alt={look.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '24px' }}>✨</span>
-              )}
+            <div key={look.id} className="item-card look-thumb" style={{ padding: 0, aspectRatio: 1 }}>
+              <LookThumbnail look={look} items={items} />
             </div>
           ))}
         </div>

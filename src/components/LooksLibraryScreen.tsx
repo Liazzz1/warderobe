@@ -3,7 +3,8 @@ import { useWardrobeStore } from '../store/useWardrobeStore';
 import { haptic, hapticSuccess } from '../lib/telegram';
 import { LookDetailModal } from './LookDetailModal';
 import { LookBuilderScreen } from './LookBuilderScreen';
-import type { Look } from '../types';
+import { LookThumbnail } from './LookThumbnail';
+import { isSlotLook, type Look } from '../types';
 
 type BuilderMode = 'slots' | 'canvas';
 
@@ -200,47 +201,7 @@ export const LooksLibraryScreen: React.FC = () => {
                 setViewingLook(look);
               }}
             >
-              <div className="thumb checker-bg" style={{ height: '100%', borderRadius: 12, position: 'relative' }}>
-                {look.mode === 'slots' ? (
-                  /* Живой CSS-коллаж для слот-образов */
-                  <div className="slot-preview-grid">
-                    {look.layers.slice(0, 4).map((layer) => {
-                      const item = items.find((i) => i.id === layer.itemId);
-                      return item ? (
-                        <div key={layer.itemId} className="slot-preview-cell">
-                          <img src={item.imageUrl} alt={item.name} />
-                        </div>
-                      ) : null;
-                    })}
-                    {look.layers.length > 4 && (
-                      <div className="slot-preview-cell slot-preview-more">
-                        +{look.layers.length - 4}
-                      </div>
-                    )}
-                  </div>
-                ) : look.previewUrl ? (
-                  <img src={look.previewUrl} alt={look.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '24px' }}>✨</span>
-                )}
-                {/* Бейдж режима */}
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: 5,
-                    left: 5,
-                    fontSize: '11px',
-                    background: 'rgba(0,0,0,0.6)',
-                    borderRadius: 6,
-                    padding: '1px 5px',
-                    lineHeight: '1.6',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                  title={look.mode === 'slots' ? 'По слотам' : 'Коллаж'}
-                >
-                  {look.mode === 'slots' ? '🔲' : '🎨'}
-                </span>
-              </div>
+              <LookThumbnail look={look} items={items} />
               <div className="look-name">{look.name}</div>
               <button
                 className="delete-btn"
@@ -349,7 +310,7 @@ export const LooksLibraryScreen: React.FC = () => {
           onDelete={() => removeLook(viewingLook.id)}
           onEdit={() => {
             setEditingLook(viewingLook);
-            setChosenMode(viewingLook.mode ?? 'slots');
+            setChosenMode(isSlotLook(viewingLook) ? 'slots' : 'canvas');
             setViewingLook(null);
             setShowBuilder(true);
           }}

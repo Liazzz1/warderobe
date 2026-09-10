@@ -40,7 +40,19 @@ CREATE TABLE IF NOT EXISTS looks (
     layers JSONB NOT NULL DEFAULT '[]'::jsonb,
     preview_url TEXT,
     folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    mode TEXT DEFAULT 'canvas'
 );
 CREATE INDEX IF NOT EXISTS idx_looks_user ON looks(user_id);
 CREATE INDEX IF NOT EXISTS idx_looks_folder ON looks(folder_id);
+
+-- Миграция: добавить mode если не существует (для уже созданных БД)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='looks' AND column_name='mode'
+    ) THEN
+        ALTER TABLE looks ADD COLUMN mode TEXT DEFAULT 'canvas';
+    END IF;
+END $$;
